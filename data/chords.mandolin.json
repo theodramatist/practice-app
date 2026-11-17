@@ -1,0 +1,43 @@
+{
+  "about": "Mandolin chord shapes, from docs/SPEC.md section 4. Frets read across the courses G, D, A, E; null means the course is not played. Only shapes the spec marks as printed are here. The four shapes the spec dropped (computed, in neither book) are deliberately absent. Chord shapes are facts about the instrument; no book text or diagram is reproduced.",
+  "instrument": "mandolin",
+  "tuning": {
+    "courses": ["G", "D", "A", "E"],
+    "openMidi": [55, 62, 69, 76],
+    "stringsPerCourse": 2
+  },
+  "statuses": {
+    "printed-mfd": "Printed in Mandolin For Dummies",
+    "printed-chop": "Printed chop shape",
+    "printed-second-chart": "Printed in a second chart"
+  },
+  "pageCheck": "Every shape was read by eye from screen images of the books, so each is checked once more against the page before it is relied on (spec section 4, Reading check).",
+  "chords": [
+    { "id": "G", "name": "G", "frets": [0, 0, 2, 3], "status": "printed-mfd", "kind": "open" },
+    { "id": "C", "name": "C", "frets": [0, 2, 3, 0], "status": "printed-mfd", "kind": "open" },
+    { "id": "D", "name": "D", "frets": [2, 0, 0, 2], "status": "printed-mfd", "kind": "open" },
+    { "id": "A", "name": "A", "frets": [2, 2, 0, 0], "status": "printed-mfd", "kind": "open", "noThird": true, "alsoAccept": ["Am"] },
+    { "id": "E", "name": "E", "frets": [4, 2, 2, 0], "status": "printed-mfd", "kind": "open", "noThird": true, "alsoAccept": ["Em"] },
+    { "id": "Em", "name": "Em", "frets": [0, 2, 2, 0], "status": "printed-mfd", "kind": "open" },
+    { "id": "Am-5200", "name": "Am", "frets": [5, 2, 0, 0], "status": "printed-mfd", "kind": "open" },
+    { "id": "Am-2235", "name": "Am", "frets": [2, 2, 3, 5], "status": "printed-second-chart", "kind": "closed" },
+    { "id": "Bm", "name": "Bm", "frets": [4, 0, 2, 2], "status": "printed-mfd", "kind": "open" },
+    { "id": "Dm", "name": "Dm", "frets": [2, 0, 0, 1], "status": "printed-mfd", "kind": "open" },
+    { "id": "F#m", "name": "F♯m", "frets": [6, 4, 0, 2], "status": "printed-mfd", "kind": "open" },
+    { "id": "F", "name": "F", "frets": [5, 3, 0, 1], "status": "printed-mfd", "kind": "open" },
+    { "id": "Bb", "name": "B♭", "frets": [3, 0, 1, 1], "status": "printed-mfd", "kind": "open" },
+    { "id": "Gm", "name": "Gm", "frets": [0, 0, 1, 3], "status": "printed-mfd", "kind": "open" },
+    { "id": "Cm", "name": "Cm", "frets": [0, 1, 3, 3], "status": "printed-mfd", "kind": "open" },
+    { "id": "B", "name": "B", "frets": [4, 4, 6, 7], "status": "printed-mfd", "kind": "closed" },
+    { "id": "B7", "name": "B7", "frets": [4, 4, 6, 5], "status": "printed-mfd", "kind": "closed" },
+    { "id": "D7", "name": "D7", "frets": [2, 0, 3, 2], "status": "printed-mfd", "kind": "open" },
+    { "id": "G7", "name": "G7", "frets": [0, 0, 2, 1], "status": "printed-mfd", "kind": "open" },
+    { "id": "E7", "name": "E7", "frets": [1, 0, 2, 0], "status": "printed-mfd", "kind": "open" },
+    { "id": "A7", "name": "A7", "frets": [6, 5, 0, 0], "status": "printed-mfd", "kind": "open" },
+    { "id": "Eb", "name": "E♭", "frets": [null, 1, 1, 3], "status": "printed-second-chart", "kind": "closed" },
+    { "id": "G-chop3", "name": "G (three-finger chop)", "frets": [4, 5, 2, null], "status": "printed-chop", "kind": "chop" },
+    { "id": "C-chop3", "name": "C (three-finger chop)", "frets": [5, 2, 3, null], "status": "printed-chop", "kind": "chop" },
+    { "id": "G-chop4", "name": "G (four-finger chop)", "frets": [7, 5, 2, 3], "status": "printed-chop", "kind": "chop" },
+    { "id": "D-chop4", "name": "D (four-finger chop)", "frets": [7, 4, 5, 2], "status": "printed-chop", "kind": "chop" }
+  ]
+}

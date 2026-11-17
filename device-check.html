@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Practice">
+  <title>Device check</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Device check</h1>
+    <span id="mode-chip" class="chip">…</span>
+    <span id="mic-chip" class="chip">Microphone closed</span>
+    <a href="index.html">Back to the start page</a>
+  </header>
+  <main id="app">
+    <div id="errors"></div>
+    <p id="loading" class="muted">Loading…</p>
+    <noscript>
+      <div class="banner bad">This page needs JavaScript to run its checks.</div>
+    </noscript>
+  </main>
+  <script type="module" src="js/device/main.js"></script>
+</body>
+</html>

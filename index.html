@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Practice">
+  <meta name="theme-color" content="#0b5d6b">
+  <title>Practice</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Practice: scoring prototype</h1>
+    <span id="mode-chip" class="chip"></span>
+  </header>
+  <main>
+    <div class="panel">
+      <p>This is the test that decides whether the iPad's microphone can judge chords reliably. It is not the practice app yet.</p>
+      <p class="small">Sound is recorded and kept on this iPad only. Nothing is uploaded, and the pages make no network calls beyond loading their own files.</p>
+    </div>
+    <div class="cards">
+      <a class="card-link" href="capture.html">
+        <div class="panel">
+          <h2>Record a session</h2>
+          <p>Walks through the recording script take by take, shows each chord shape, and saves the session as one file.</p>
+        </div>
+      </a>
+      <a class="card-link" href="device-check.html">
+        <div class="panel">
+          <h2>Device check</h2>
+          <p>Checks the microphone prompts, the audio settings the iPad grants, the click, latency, wake lock, offline launch and stored data.</p>
+        </div>
+      </a>
+    </div>
+    <div class="panel" style="margin-top:14px">
+      <dl class="kv">
+        <dt>Running as</dt><dd id="mode"></dd>
+        <dt>Works offline</dt><dd id="offline">checking…</dd>
+        <dt>Build</dt><dd id="build">…</dd>
+      </dl>
+    </div>
+  </main>
+  <script type="module" src="js/home.js"></script>
+</body>
+</html>
