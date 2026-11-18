@@ -1,23 +1,38 @@
 // Service worker: lets the pages open with no connection.
 //
-// Strategy for the prototype: network first, cache as the fallback. When the
-// iPad is online it always gets the newest files (so a fix reaches it at once);
-// when it is offline it gets the last copy it saw. On install every file listed
-// in precache.json is stored, so a page opens offline even if it was never
-// visited. Only the app's own files are ever fetched.
+// Every build of the site has its own copy of this file (the BUILD line below
+// is rewritten by scripts/build_precache.py) and its own cache. So when a new
+// build is published, the browser sees that this file changed, installs the new
+// worker, and that worker stores EVERY file of the new build before taking
+// over. The copy that opens offline is therefore always one whole build, never
+// a mix of old and new pages.
+//
+// Online, pages are fetched from the network first, so a fix arrives at once;
+// offline, they come from the stored build. Only the app's own files are fetched.
 
+const BUILD = '03336bb4fb';
 const SHELL_PREFIX = 'practice-shell-';
-const SHELL = `${SHELL_PREFIX}v1`;
+const SHELL = `${SHELL_PREFIX}${BUILD}`;
 const NETWORK_WAIT_MS = 4000;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SHELL);
-      const response = await fetch('./precache.json', { cache: 'no-store' });
-      const list = await response.json();
-      await cache.put('./precache.json', new Response(JSON.stringify(list), { headers: { 'Content-Type': 'application/json' } }));
-      await cache.addAll(list.files.map((file) => new Request(file, { cache: 'reload' })));
+      // "?v=<build>" makes sure each file comes from the site itself and not
+      // from a stale copy held somewhere on the way. It is stored under its plain name.
+      const fresh = (path) => fetch(`${path}${path.includes('?') ? '&' : '?'}v=${BUILD}`, { cache: 'reload', credentials: 'same-origin' });
+      const listResponse = await fresh('./precache.json');
+      if (!listResponse.ok) throw new Error('precache.json could not be fetched');
+      const list = await listResponse.clone().json();
+      await cache.put('./precache.json', listResponse);
+      await Promise.all(
+        list.files.map(async (file) => {
+          const response = await fresh(file);
+          if (!response.ok) throw new Error(`${file} could not be fetched`);
+          await cache.put(file, response);
+        })
+      );
       await self.skipWaiting();
     })()
   );
@@ -59,20 +74,25 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     (async () => {
-      const cache = await caches.open(SHELL);
       try {
-        const response = await fetchWithTimeout(request.url);
-        if (response && response.ok) cache.put(request.url, response.clone());
-        return response;
+        // The stored build is not touched here: it changes only as a whole,
+        // when a new worker installs. That keeps the offline copy consistent.
+        return await fetchWithTimeout(request.url);
       } catch (error) {
+        const cache = await caches.open(SHELL);
         const hit = (await cache.match(request.url)) || (await cache.match(request.url, { ignoreSearch: true }));
         if (hit) return hit;
         if (request.mode === 'navigate') {
-          const home = await cache.match('./index.html');
+          const home = (await cache.match('./index.html')) || (await cache.match('./'));
           if (home) return home;
         }
         throw error;
       }
     })()
   );
+});
+
+// A page can ask which build this worker serves offline.
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'build' && event.source) event.source.postMessage({ type: 'build', build: BUILD });
 });

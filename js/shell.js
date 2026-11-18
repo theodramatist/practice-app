@@ -42,6 +42,32 @@ export function isStandalone() {
   );
 }
 
+/** How the page is running, in words. Says "Safari" only when the browser really is Safari. */
+export function tabLabel() {
+  const ua = navigator.userAgent || '';
+  const safari = /Safari\//.test(ua) && !/Chrome|Chromium|CriOS|FxiOS|EdgiOS|Edg\/|OPR\//.test(ua);
+  return safari ? 'Safari tab' : 'Browser tab';
+}
+
+export function modeLabel() {
+  return isStandalone() ? 'Home Screen app' : tabLabel();
+}
+
+/**
+ * The build code of the copy stored for offline use, read from the service
+ * worker's cache name. Null when nothing is stored yet (or caches are unavailable).
+ */
+export async function offlineBuild() {
+  try {
+    if (!globalThis.caches) return null;
+    const names = (await caches.keys()).filter((name) => name.startsWith('practice-shell-'));
+    if (!names.length) return null;
+    return names[names.length - 1].slice('practice-shell-'.length);
+  } catch (error) {
+    return null;
+  }
+}
+
 /** What can be learned about the device without asking for anything. */
 export function envInfo() {
   return {

@@ -1,5 +1,5 @@
 {
- "version": "8b452678f3",
+ "version": "03336bb4fb",
  "files": [
   "./",
   "capture.html",
@@ -10,6 +10,7 @@
   "icons/icon-180.png",
   "icons/icon-512.png",
   "index.html",
+  "js/audio/assemble.js",
   "js/audio/audio-io.js",
   "js/audio/metronome-worker.js",
   "js/audio/metronome.js",

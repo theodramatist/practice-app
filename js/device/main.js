@@ -16,7 +16,7 @@
 // measures.js and pitch.js, which are tested under Node on synthetic signals.
 
 import { loadConfig } from '../config.js';
-import { h, add, clear, envInfo, registerServiceWorker, WakeLock, shareFile, downloadFile, todayIso, noteVisit } from '../shell.js';
+import { h, add, clear, envInfo, registerServiceWorker, WakeLock, shareFile, downloadFile, todayIso, noteVisit, tabLabel, offlineBuild } from '../shell.js';
 import { createAudioIO, features } from '../audio/audio-io.js';
 import { Metronome } from '../audio/metronome.js';
 import { dbPut, dbGetAll, kvGet, kvSet, requestPersistence } from '../util/db.js';
@@ -29,6 +29,7 @@ import { median, amplitudeDb } from './dsp.js';
 // Filled in by readNumbers() once the config has loaded. Nothing below is hard-coded.
 
 let CLICK_FOUND_MIN_RATIO,
+  CLICK_SEARCH_BEFORE_SEC,
   CLICK_SEARCH_AFTER_SEC,
   CLICK_SEARCH_SPACING_SHARE,
   LOOPBACK_START_DELAY_SEC,
@@ -39,6 +40,9 @@ let CLICK_FOUND_MIN_RATIO,
   TONE_SEC,
   TONE_GAIN,
   TONE_BAND_PCT,
+  TONE_PURITY_LOW_HZ,
+  TONE_PURITY_HIGH_HZ,
+  NOISE_BANDS,
   TONE_HEARD_MIN_PURITY_DB,
   NOISE_SEC,
   NOISE_GAIN,
@@ -55,6 +59,7 @@ let CLICK_FOUND_MIN_RATIO,
 
 function readNumbers(cfg) {
   CLICK_FOUND_MIN_RATIO = cfg('device.clickFoundMinRatio');
+  CLICK_SEARCH_BEFORE_SEC = cfg('device.clickSearchBeforeMs') / 1000;
   CLICK_SEARCH_AFTER_SEC = cfg('device.clickSearchAfterMs') / 1000;
   CLICK_SEARCH_SPACING_SHARE = cfg('device.clickSearchSpacingShare');
   LOOPBACK_START_DELAY_SEC = cfg('device.loopbackStartDelayMs') / 1000;
@@ -65,6 +70,14 @@ function readNumbers(cfg) {
   TONE_SEC = cfg('device.toneDurationSec');
   TONE_GAIN = cfg('device.toneGain');
   TONE_BAND_PCT = cfg('device.tonePurityBandPct');
+  TONE_PURITY_LOW_HZ = cfg('device.tonePurityLowHz');
+  TONE_PURITY_HIGH_HZ = cfg('device.tonePurityHighHz');
+  NOISE_BANDS = {
+    midLowHz: cfg('device.noiseMidLowHz'),
+    midHighHz: cfg('device.noiseMidHighHz'),
+    highLowHz: cfg('device.noiseHighLowHz'),
+    highTopHz: cfg('device.noiseHighTopHz'),
+  };
   TONE_HEARD_MIN_PURITY_DB = cfg('device.toneHeardMinPurityDb');
   NOISE_SEC = cfg('device.noiseDurationSec');
   NOISE_GAIN = cfg('device.noiseGain');
@@ -82,7 +95,8 @@ function readNumbers(cfg) {
 
 // ---- fixed lists -------------------------------------------------------------
 
-const MODE_NAMES = { 'browser-tab': 'Safari tab', 'home-screen': 'Home Screen app' };
+// Says "Safari tab" only when the browser really is Safari.
+const MODE_NAMES = { 'browser-tab': tabLabel(), 'home-screen': 'Home Screen app' };
 const SITUATIONS = [
   ['cold-launch', 'Opened fresh (cold launch)'],
   ['after-backgrounding', 'After switching away and back'],
@@ -493,6 +507,7 @@ async function runLoopback({ bpm, clicks, gain }) {
     clicks: log,
     templates,
     bpm,
+    searchBeforeSec: CLICK_SEARCH_BEFORE_SEC,
     searchAfterSec: Math.min(CLICK_SEARCH_AFTER_SEC, CLICK_SEARCH_SPACING_SHARE * spacing),
     minRatio: CLICK_FOUND_MIN_RATIO,
   });
@@ -574,7 +589,7 @@ function buildIntro() {
       'p',
       {},
       'This page is running ',
-      h('strong', {}, state.mode === 'home-screen' ? 'from the Home Screen icon' : 'in a Safari tab'),
+      h('strong', {}, state.mode === 'home-screen' ? 'from the Home Screen icon' : `in a ${tabLabel()}`),
       `. This is launch ${state.launchNumber} of this page in this mode.`
     ),
     h(
@@ -951,15 +966,16 @@ async function runClickTone() {
     takeStartTime: take.startTime,
     clicks,
     templates,
+    searchBeforeSec: CLICK_SEARCH_BEFORE_SEC,
     searchAfterSec: Math.min(CLICK_SEARCH_AFTER_SEC, CLICK_SEARCH_SPACING_SHARE * CLICK_TONE_SPACING_SEC),
     minRatio: CLICK_FOUND_MIN_RATIO,
   });
   // Later sounds are looked for where the clicks say sound arrives.
   const delaySec = loop.found ? loop.delayMs.median / 1000 : 0;
   const at = (time) => time - take.startTime + delaySec;
-  const tone = toneMeasures(samples, sampleRate, at(toneStart) + 0.2, at(toneStart) + TONE_SEC - 0.2, TONE_HZ, { bandPct: TONE_BAND_PCT });
+  const tone = toneMeasures(samples, sampleRate, at(toneStart) + 0.2, at(toneStart) + TONE_SEC - 0.2, TONE_HZ, { bandPct: TONE_BAND_PCT, lowHz: TONE_PURITY_LOW_HZ, highHz: TONE_PURITY_HIGH_HZ });
   const toneHeard = tone.purityDb !== null && tone.purityDb >= TONE_HEARD_MIN_PURITY_DB;
-  const tilt = noiseTilt(samples, sampleRate, at(noiseStart) + 0.03, at(noiseStart) + NOISE_SEC - 0.03);
+  const tilt = noiseTilt(samples, sampleRate, at(noiseStart) + 0.03, at(noiseStart) + NOISE_SEC - 0.03, NOISE_BANDS);
   const noiseLevel = levelBetween(samples, sampleRate, at(noiseStart) + 0.03, at(noiseStart) + NOISE_SEC - 0.03);
   const room = levelBetween(samples, sampleRate, 0.05, Math.max(0.1, first - take.startTime - 0.05));
   const noiseHeard = noiseLevel.rmsDb !== null && room.rmsDb !== null && noiseLevel.rmsDb - room.rmsDb >= TONE_HEARD_MIN_PURITY_DB;
@@ -1883,6 +1899,10 @@ async function init() {
 
   await loadTuning();
   state.sw = await registerServiceWorker();
+  offlineBuild().then((build) => {
+    const chip = document.getElementById('build-chip');
+    if (chip) chip.textContent = build ? `Build ${build}` : 'Not stored for offline yet';
+  });
   state.wakeLock = new WakeLock(() => {
     if (ui.wakeState) renderWakeLock();
   });
@@ -1902,6 +1922,32 @@ async function init() {
     buildOffline(),
     buildSurvival(),
     buildExport()
+  );
+
+  // A way round a long page: one button per check, placed under "Where you are".
+  // The checks fall into three sittings, and the buttons say which is which.
+  const sections = [...app.querySelectorAll('section.panel')].slice(1);
+  const when = (title) => (title.startsWith('10.') ? 'Come back in two weeks' : title.startsWith('11.') ? 'Last' : 'This sitting');
+  const groups = new Map();
+  sections.forEach((section, i) => {
+    const title = section.querySelector('h2').textContent;
+    section.id = `check-${i + 1}`;
+    section.tabIndex = -1;
+    const button = h('button', {
+      onclick: () => {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        section.focus({ preventScroll: true });
+      },
+    }, title);
+    if (!groups.has(when(title))) groups.set(when(title), []);
+    groups.get(when(title)).push(button);
+  });
+  app.insertBefore(
+    h('nav', { class: 'panel stack', 'aria-label': 'The checks on this page' },
+      h('h2', {}, 'The checks'),
+      [...groups].map(([label, buttons]) => h('div', { class: 'row' }, h('span', { class: 'small', style: 'min-width:11em' }, label), buttons)),
+    ),
+    sections[0]
   );
 
   // Live hooks.

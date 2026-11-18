@@ -156,6 +156,7 @@ export function analyseLoopback(o) {
     const template = click.accent ? o.templates.accent : o.templates.normal;
     const expectedSec = click.time - o.takeStartTime;
     const hit = findClick(o.samples, o.sampleRate, template, expectedSec, {
+      searchBeforeSec: o.searchBeforeSec,
       searchAfterSec: o.searchAfterSec,
       minRatio: o.minRatio,
     });

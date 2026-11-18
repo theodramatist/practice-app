@@ -30,8 +30,11 @@ export function chordDiagram(frets, marks = {}) {
   const ghostFrets = moved.map((m) => m.from).filter((f) => f > 0);
   const highest = Math.max(0, ...fretted, ...ghostFrets);
   const lowest = Math.min(...(fretted.length ? [...fretted, ...ghostFrets] : [1]));
-  const rows = 5;
-  const firstFret = highest <= rows ? 1 : lowest;
+  // Five fret spaces as a rule; more when a shape (or a finger moved off it) spans
+  // further, so no finger is ever drawn outside the grid.
+  const baseRows = 5;
+  const firstFret = highest <= baseRows ? 1 : lowest;
+  const rows = Math.max(baseRows, highest - firstFret + 1);
 
   const left = 30;
   const top = 34;
@@ -46,6 +49,9 @@ export function chordDiagram(frets, marks = {}) {
   out.push(
     `<svg xmlns="http://www.w3.org/2000/svg" class="chord-diagram" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${marks.label || 'Chord shape ' + fretsText(frets)}">`
   );
+
+  // The fingerboard the lines sit on (drawn first, so everything else is on top of it)
+  out.push(`<rect class="cd-board" x="${x(0) - 11}" y="${top - 3}" width="${colGap * 3 + 22}" height="${rowGap * rows + 6}" rx="3"/>`);
 
   // Course names
   COURSE_NAMES.forEach((name, i) => {
@@ -62,12 +68,12 @@ export function chordDiagram(frets, marks = {}) {
   if (firstFret === 1) {
     out.push(`<line class="cd-nut" x1="${x(0) - 5}" y1="${top}" x2="${x(3) + 5}" y2="${top}"/>`);
   } else {
-    out.push(`<text class="cd-pos" x="${x(0) - 12}" y="${y(firstFret) + 4}" text-anchor="end">${firstFret}</text>`);
+    out.push(`<text class="cd-pos" x="${x(0) - 15}" y="${y(firstFret) + 4}" text-anchor="end">${firstFret}</text>`);
   }
 
   // Fret lines
   for (let r = 0; r <= rows; r++) {
-    out.push(`<line class="cd-fret" x1="${x(0) - 4}" y1="${top + r * rowGap}" x2="${x(3) + 4}" y2="${top + r * rowGap}"/>`);
+    out.push(`<line class="cd-fret" x1="${x(0) - 9}" y1="${top + r * rowGap}" x2="${x(3) + 9}" y2="${top + r * rowGap}"/>`);
   }
 
   // Courses: two strings each

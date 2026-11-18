@@ -32,6 +32,39 @@ export function recordedTakes(session) {
 }
 
 /**
+ * Where a session stands, counted one way for every screen:
+ * usable (recorded and not marked bad), flagged (recorded, marked bad),
+ * skipped, and todo (nothing yet). usable + flagged + skipped + todo = total.
+ */
+export function tally(session) {
+  const out = { total: session.takes.length, usable: 0, flagged: 0, skipped: 0, todo: 0 };
+  for (const take of session.takes) {
+    const result = session.results[take.id];
+    if (!result) out.todo += 1;
+    else if (result.status === 'skipped') out.skipped += 1;
+    else if (result.flag) out.flagged += 1;
+    else out.usable += 1;
+  }
+  out.recorded = out.usable + out.flagged;
+  return out;
+}
+
+/**
+ * Save a take's audio and its labels together, or not at all.
+ * The session passed in is NOT changed; the caller updates its own copy only
+ * after this resolves. `putTogether` is db.js's dbPutTogether (one transaction).
+ * @returns {Promise<object>} the session as it now is on the device
+ */
+export async function commitTake(session, takeId, result, audioBytes, putTogether) {
+  const next = { ...session, results: { ...session.results, [takeId]: result } };
+  await putTogether([
+    { store: 'audio', value: { key: `${session.id}/${takeId}`, sessionId: session.id, bytes: audioBytes } },
+    { store: 'sessions', value: next },
+  ]);
+  return next;
+}
+
+/**
  * Build session.json.
  * @param {object} session  the session record kept on the device
  * @param {{exportedAt?: string, part?: {index:number, of:number}, takeIds?: string[]}} [options]
@@ -69,8 +102,12 @@ export function buildManifest(session, options = {}) {
         durationSec: result.durationSec,
         peak: result.peak,
         clipped: result.clipped,
+        // Dropouts: frames the audio thread never delivered. The WAV has silence
+        // there, so every time in the take is still true; gapList says where.
+        timeline: result.timeline || (result.gaps > 0 ? 'unknown' : 'continuous'),
         gaps: result.gaps,
         gapFrames: result.gapFrames,
+        gapList: result.gapList || [],
         zeroRuns: result.zeroRuns,
         wallMinusAudioMs: result.wallMinusAudioMs,
         bitDepth: result.bitDepth,

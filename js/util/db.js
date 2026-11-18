@@ -51,6 +51,31 @@ export const dbGet = (store, key) => run(store, 'readonly', (s) => s.get(key));
 export const dbGetAll = (store) => run(store, 'readonly', (s) => s.getAll());
 export const dbPut = (store, value) => run(store, 'readwrite', (s) => s.put(value));
 export const dbDelete = (store, key) => run(store, 'readwrite', (s) => s.delete(key));
+
+/**
+ * Write several records, possibly in different stores, as ONE transaction:
+ * either every one of them is saved or none is. Used so a take's audio and its
+ * labels can never come from different attempts.
+ * @param {{store: string, value: object}[]} writes
+ */
+export function dbPutTogether(writes) {
+  const stores = [...new Set(writes.map((write) => write.store))];
+  return openDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(stores, 'readwrite');
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('The database write was cancelled.'));
+        try {
+          for (const write of writes) tx.objectStore(write.store).put(write.value);
+        } catch (error) {
+          try { tx.abort(); } catch (ignored) { /* already aborting */ }
+          reject(error);
+        }
+      })
+  );
+}
 export const dbKeysByIndex = (store, index, value) =>
   run(store, 'readonly', (s) => s.index(index).getAllKeys(IDBKeyRange.only(value)));
 

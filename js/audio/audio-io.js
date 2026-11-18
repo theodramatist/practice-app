@@ -22,6 +22,8 @@
 // time T" sit on the same clock (apart from the round-trip latency, which the
 // device check measures).
 
+import { assembleChunks } from './assemble.js';
+
 const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
 
 export function features() {
@@ -73,8 +75,12 @@ class WebAudioIO {
 
   // ---- state ---------------------------------------------------------------
 
+  /** True only while samples can really arrive: a live, unmuted track and a running audio clock. */
   get listening() {
-    return !!(this.track && this.track.readyState === 'live' && this.recorderNode);
+    return !!(
+      this.track && this.track.readyState === 'live' && !this.track.muted &&
+      this.recorderNode && this.ctx && this.ctx.state === 'running'
+    );
   }
 
   get sampleRate() {
@@ -375,24 +381,20 @@ class WebAudioIO {
     const wallMs = performance.now() - take.wallStart;
     const audioMs = (this.now() - take.audioStart) * 1000;
 
-    let total = 0;
-    for (const chunk of take.chunks) total += chunk.samples.length;
-    const samples = new Float32Array(total);
-    let at = 0;
+    // Every sample goes at its own frame number, so times stay true even if the
+    // audio thread dropped some frames (those are filled with silence and listed).
+    const sampleRate = this.ctx.sampleRate;
+    const laid = assembleChunks(take.chunks, Math.round(this.cfg('capture.maxGapFillSec') * sampleRate));
+    const samples = laid.samples;
     let peak = 0;
     let clipped = 0;
     const clipLevel = this.cfg('capture.clipLevel');
-    for (const chunk of take.chunks) {
-      samples.set(chunk.samples, at);
-      at += chunk.samples.length;
-    }
     for (let i = 0; i < samples.length; i++) {
       const magnitude = Math.abs(samples[i]);
       if (magnitude > peak) peak = magnitude;
       if (magnitude >= clipLevel) clipped += 1;
     }
-    const sampleRate = this.ctx.sampleRate;
-    const startFrame = take.chunks.length ? take.chunks[0].frame : Math.round(take.audioStart * sampleRate);
+    const startFrame = laid.startFrame !== null ? laid.startFrame : Math.round(take.audioStart * sampleRate);
     return {
       samples,
       sampleRate,
@@ -401,8 +403,11 @@ class WebAudioIO {
       durationSec: samples.length / sampleRate,
       peak,
       clipped,
-      gaps: this.counters.gaps - take.countersAtStart.gaps,
-      gapFrames: this.counters.gapFrames - take.countersAtStart.gapFrames,
+      timeline: laid.timeline, // 'continuous', 'filled' (silence put where frames were lost) or 'broken'
+      gapList: laid.gapList,
+      gaps: laid.gapList.length,
+      gapFrames: laid.filledFrames,
+      overlapFrames: laid.overlapFrames,
       zeroRuns: this.counters.zeroRuns - take.countersAtStart.zeroRuns,
       wallMinusAudioMs: Math.round(wallMs - audioMs),
     };

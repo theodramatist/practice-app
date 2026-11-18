@@ -126,7 +126,7 @@ export function buildScript({ cfg, chords, sessionNumber = 1 }) {
         lines: [
           `Hold ${chord.name} (${shape}) and strum all four courses once on each flash.`,
           'Follow the prompt for soft, medium or loud, and for a down or up stroke.',
-          'Play it as cleanly as you can. If one goes wrong, carry on and mark the take as bad afterwards.',
+          'Play it as cleanly as you can. If a strum goes wrong, carry on to the end, then record this take again: the analysis takes its bearings for this chord from it.',
         ],
       })
     );
@@ -302,6 +302,27 @@ export function buildScript({ cfg, chords, sessionNumber = 1 }) {
     if (take.cues.length) take.cueIntervalSec = interval;
   });
   return takes;
+}
+
+/**
+ * Which chord-change pairs the chosen chords can and cannot supply. A pair is
+ * dropped from the script when either of its chords was not chosen, so setup
+ * checks this first and refuses a choice that would lose change takes.
+ * @returns {{kept: string[][], dropped: string[][], needed: string[]}} pairs by chord id or name
+ */
+export function changeCoverage(cfg, chords) {
+  const has = (key) => chords.some((chord) => chord.id === key || chord.name === key);
+  const all = [...cfg('script.changePairs'), ...cfg('script.speakerComparisonPairs')];
+  const kept = [];
+  const dropped = [];
+  const seen = new Set();
+  for (const pair of all) {
+    const key = pair.join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    (has(pair[0]) && has(pair[1]) ? kept : dropped).push(pair);
+  }
+  return { kept, dropped, needed: [...new Set(all.flat())] };
 }
 
 /** Totals for the "how long will this take" line. */
